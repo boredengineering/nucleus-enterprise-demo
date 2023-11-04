@@ -1,0 +1,14 @@
+---
+collections:
+  - name: amazon.aws
+  - name: community.aws
+  - name: community.general
+  - name: community.docker
+    version: 3.4.8
+
+# Nvidia Roles from Galaxy
+roles:
+  - src: nvidia.nvidia_driver
+    version: "v2.3.0"
+  - src: nvidia.nvidia_docker
+    version: "v1.2.4"

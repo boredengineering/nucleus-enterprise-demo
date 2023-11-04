@@ -1,0 +1,11 @@
+plugin: aws_ec2
+aws_profile: ${profile}
+regions:
+  - ${region}
+
+hostnames:
+  - instance-id
+
+groups:
+  nucleus: "'Nucleus-Server' in tags.Name"
+  nginx: "'Nucleus-ReverseProxy' in tags.Name"

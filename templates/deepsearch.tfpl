@@ -1,0 +1,20 @@
+region: "${region}"
+profile_name: "${profile}"
+bucketname: "${Bucketname}"
+domain: "${domain}"
+# ----------------------------------------------------------------------------------
+# Where Nucleus is hosted
+base_stack_ip_or_host: "${NucleusServerPrivateDnsName}"
+# Where DeepSearch is hosted
+server_ip_or_host: "${NucleusServerPrivateDnsName}"
+# ----------------------------------------------------------------------------------
+# Same secrets as created by Nucleus sample deployment
+# auth_root_of_trust_pub: "/opt/ove/nucleus-stack/base_stack/secrets/auth_root_of_trust.pub"
+auth_root_of_trust_pub: "./secrets/auth_root_of_trust.pub"
+# ----------------------------------------------------------------------------------
+# discovery_registration_token: "/opt/ove/nucleus-stack/base_stack/secrets/svc_reg_token"
+discovery_registration_token: "./secrets/svc_reg_token"
+# ----------------------------------------------------------------------------------
+search_backend_type: "os_index"
+search_backend_host: "open-search"
+omni_farm_host: "http://localhost:8222"

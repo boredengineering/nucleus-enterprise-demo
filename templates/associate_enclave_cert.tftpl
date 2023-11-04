@@ -1,0 +1,71 @@
+import boto3
+import json
+
+# CERT_ARN = tls-certificate-arn               
+# ROLE_ARN = proxy-instance-role-arn           
+# ROLE_POLICY_ARN = proxy-cert-association-policy-arn 
+
+CERT_ARN        = "${tlsCertificateArn}"
+ROLE_ARN        = "${proxyInstanceRoleArn}"
+ROLE_POLICY_ARN = "${proxyCertAssociationPolicyArn}"
+REGION          = "${region}"
+PROFILE_NAME    = "${profile_name}"
+# Setup for SSO
+boto3.setup_default_session(profile_name=PROFILE_NAME,region_name= REGION)
+
+ec2_client = boto3.client('ec2')
+iam_client = boto3.client('iam')
+iam_rsrc = boto3.resource('iam')
+
+response = ec2_client.associate_enclave_certificate_iam_role(
+    CertificateArn=CERT_ARN,
+    RoleArn=ROLE_ARN
+)
+
+# print(response)
+
+bucket = response['CertificateS3BucketName']
+s3object = response['CertificateS3ObjectKey']
+kmskeyid = response['EncryptionKmsKeyId']
+
+# update policy with association resources
+policy = iam_rsrc.Policy(ROLE_POLICY_ARN)
+policyJson = policy.default_version.document
+cur_version = policy.default_version_id
+
+policyJson['Statement'] = [
+    {
+    "Effect": "Allow", 
+    "Action": "s3:GetObject"
+    ,
+    "Resource": [f"arn:aws:s3:::{bucket}/*"]
+    },
+    {
+    "Sid": "VisualEditor0",
+    "Effect": "Allow",
+    "Action": [
+        "kms:Decrypt"
+    ],
+    "Resource": f"arn:aws:kms:{REGION}:*:key/{kmskeyid}"
+    },
+    {
+    "Effect": "Allow",
+    "Action": "iam:GetRole",
+    "Resource": ROLE_ARN
+    }
+]
+
+response = iam_client.create_policy_version(
+    PolicyArn = ROLE_POLICY_ARN,
+    PolicyDocument= json.dumps(policyJson),
+    SetAsDefault= True
+)
+
+# print(response)
+
+response = iam_client.delete_policy_version(
+    PolicyArn = ROLE_POLICY_ARN,
+    VersionId = cur_version
+)
+
+# print(response)

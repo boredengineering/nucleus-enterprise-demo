@@ -1,0 +1,273 @@
+---
+# ---------------------------------------------------------------------
+# Play 1
+# ---------------------------------------------------------------------
+- name: Install Nucleus
+  hosts: nucleus
+  become: true
+  gather_facts: true
+  vars:
+    ansible_connection: aws_ssm
+    ansible_aws_ssm_profile: "{{ profile_name }}"
+    ansible_aws_ssm_bucket_name: "{{ bucketname }}"
+    ansible_aws_ssm_region: "{{ region }}"
+  tasks:
+  # ---------------------------------------------------------------------
+  # Block 0 - Install PreRequisistes
+  # ---------------------------------------------------------------------
+  - name: Install Docker
+    block:
+      - name: Install aptitude
+        apt:
+          name: aptitude
+          state: latest
+          update_cache: true
+      - name: Performs apt-get update and upgrade using aptitude safe-upgrade
+        apt:
+          update_cache: yes
+          upgrade: yes
+      - name: Install required system packages
+        apt:
+          pkg:
+            - apt-transport-https
+            - ca-certificates
+            - curl
+            - software-properties-common
+            - python3-pip
+            - virtualenv
+            - python3-setuptools
+            - unzip
+          state: latest
+          update_cache: true
+      - name: Install Boto3 Module for Python
+        pip:
+          name: boto3
+  # ---------------------------------------------------------------------
+  # Conditional Block 1 - Install Docker
+  # ---------------------------------------------------------------------
+  - name: Check If Docker Is Installed
+    command: docker --version
+    register: docker_valid
+    ignore_errors: yes
+  # ---------------------------------------------------------------------
+  # Block 1 - Install Docker
+  # ---------------------------------------------------------------------
+  - name: Install Docker
+    block:
+      - name: Add Docker GPG apt Key
+        apt_key:
+          url: https://download.docker.com/linux/ubuntu/gpg
+          state: present
+      - name: Add Docker Repository
+        apt_repository:
+          repo: deb https://download.docker.com/linux/ubuntu jammy stable
+          state: present
+      - name: Update apt and install docker-ce
+        apt:
+          name: docker-ce
+          state: latest
+          update_cache: true
+      - name: Install Docker Module for Python
+        pip:
+          name: docker
+    when: docker_valid.failed
+  # ---------------------------------------------------------------------
+  # Conditional Block 2 - Install Docker-Compose
+  # ---------------------------------------------------------------------
+  - name: use stat to determine if the Docker-Compose exists
+    stat:
+      path: /usr/local/bin/docker-compose
+    register: compose
+  - debug:
+      var: compose.stat.exists
+  # ---------------------------------------------------------------------
+  # Block 2 - Install Docker-Compose
+  # ---------------------------------------------------------------------
+  # https://github.com/docker/compose/releases/download/1.29.2/docker-compose-Linux-x86_64
+  - name: Install Docker-Compose
+    get_url:
+      url : https://github.com/docker/compose/releases/download/1.29.2/docker-compose-Linux-{{ ansible_architecture }}
+      dest: /usr/local/bin/docker-compose
+      mode: 'u+x,g+x,o+x'
+    when: compose.stat.exists == false
+  # ---------------------------------------------------------------------
+  # Conditional Block 3 - Install aws-cli
+  # --------------------------------------------------------------------
+  - name: use stat to determine if the AWS CLI exists
+    stat:
+      path: /usr/local/bin/aws
+    register: out
+  - debug:
+      var: out.stat.exists
+  # ---------------------------------------------------------------------
+  # Block 3 - Install aws-cli
+  # ---------------------------------------------------------------------
+  - name: enter this block when /usr/local/bin/aws does not exist
+    block:
+    # ---------------------------------------------------------------------
+    - name: set_fact aws_cli_url
+      set_fact:
+        aws_cli_url: https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip
+    - debug:
+        var: aws_cli_url
+    # ---------------------------------------------------------------------
+    - name: use uri to determine if {{ aws_cli_url }} exists
+      uri:
+        url: "{{ aws_cli_url }}"
+        method: GET
+      register: uri
+    # ---------------------------------------------------------------------
+    - name: display uri.status (should be 200 meaning {{ aws_cli_url }} exists)
+      debug:
+        var: uri.status
+    # ---------------------------------------------------------------------
+    - name: fail if uri.status is NOT 200
+      fail:
+        msg: it appears that {{ aws_cli_url }} does NOT exist
+      when: uri.status != 200
+    # ---------------------------------------------------------------------
+    - name: remove /tmp/awscli-exe-linux-x86_64.zip (if exists)
+      file:
+        path: /tmp/awscli-exe-linux-x86_64.zip
+        state: absent
+    # ---------------------------------------------------------------------
+    - name: use get_url to download {{ aws_cli_url }} to /tmp
+      get_url:
+        url: "{{ aws_cli_url }}"
+        dest: /tmp
+      register: get_url
+    # ---------------------------------------------------------------------
+    - name: display get_url.status_code (should be 200 meaning {{ aws_cli_url }} was downloaded to /tmp)
+      debug:
+        var: get_url.status_code
+    # ---------------------------------------------------------------------
+    - name: fail if get_url.status_code is NOT 200
+      fail:
+        msg: it appears {{ aws_cli_url }} was NOT downloaded to /tmp
+      when: get_url.status_code != 200
+    # ---------------------------------------------------------------------
+    - name: display get_url.dest (should be /tmp/awscli-exe-linux-x86_64.zip)
+      debug:
+        var: get_url.dest
+    # ---------------------------------------------------------------------
+    - name: use unarchive to extract /tmp/awscli-exe-linux-x86_64.zip to
+      unarchive:
+        src: "{{ get_url.dest }}"
+        dest: /tmp
+        remote_src: true
+      register: unarchive
+    # ---------------------------------------------------------------------
+    - name: remove /tmp/awscli-exe-linux-x86_64.zip
+      file:
+        path: "{{ get_url.dest }}"
+        state: absent
+    # ---------------------------------------------------------------------
+    - name: issue the /tmp/aws/install command to install the AWS CLI
+      shell: /tmp/aws/install
+      register: shell
+    # ---------------------------------------------------------------------
+    - name: display the shell.rc (should be 0 meaning the AWS CLI was successfully installed)
+      debug:
+        var: shell.rc
+    # ---------------------------------------------------------------------
+    - name: display the shell.stdout (should be something like 'You can now run  /usr/local/bin/aws')
+      debug:
+        var: shell.stdout
+    # ---------------------------------------------------------------------
+    - name: remove the /tmp/aws directory
+      file:
+        path: /tmp/aws
+        state: absent
+    # ---------------------------------------------------------------------
+    when: out.stat.exists == false
+    # ---------------------------------------------------------------------
+    # END BLOCK 3
+    # ---------------------------------------------------------------------
+  # ---------------------------------------------------------------------
+  # Conditional Block 4 & 5 - Download and Extract nucleus-stack.tar.gz
+  # ---------------------------------------------------------------------
+  - name: Check if /opt/ove exists
+    stat:
+      path: "/opt/ove"
+    register: ove_dir
+  - name: "echo if directory already existed"
+    debug:
+      msg: "/opt/ove directory already exists"
+    when: ove_dir.stat.exists
+  # ---------------------------------------------------------------------
+  # Block 4 - Create Install Directory
+  # ---------------------------------------------------------------------
+  - name: Create Install Directory
+    block:
+      - name: Create install directory /opt/ove
+        file:
+          path: "/opt/ove"
+          state: directory
+    when: ove_dir.stat.exists == false
+  # ---------------------------------------------------------------------
+  # Block 5 - Download and Extract nucleus-stack.tar.gz
+  # ---------------------------------------------------------------------
+  # issue with ove_dir.stat.exists -- need better logic
+  - name: Download and Extract nucleus-stack.tar.gz
+    block:
+      - name: Download from S3 nucleus-stack.tar.gz
+        amazon.aws.aws_s3:
+          # profile: "{{ profile_name }}"
+          bucket: "{{ bucketname }}"
+          object: nucleus-stack.tar.gz
+          dest: /tmp/nucleus-stack.tar.gz
+          mode: get
+      - name: Extract nucleus-stack.tar.gz into /opt/ove
+        ansible.builtin.unarchive:
+          src: /tmp/nucleus-stack.tar.gz
+          dest: /opt/ove
+          # extra_opts: [--strip-components=1]
+          remote_src: yes
+    # when: ove_dir.stat.exists
+  # ---------------------------------------------------------------------
+  # Block 6 - Configure nucleus-stack
+  # ---------------------------------------------------------------------
+  - name: Configure nucleus-stack
+    block:
+      - name: Check if nucleus-stack.env file exists
+        stat:
+          path: "/opt/ove/nucleus-stack/base_stack/nucleus-stack.env"
+        register: nucleus_stack_env_file
+      - name: If nucleus-stack.env file exists
+        file:
+          path: "/opt/ove/nucleus-stack/base_stack/nucleus-stack.env"
+          state: absent
+        when: nucleus_stack_env_file.stat.exists
+      - name: Create nucleus-stack.env from template
+        template:
+          src: nucleus-stack.env.j2
+          dest: "/opt/ove/nucleus-stack/base_stack/nucleus-stack.env"
+          mode: 0644
+  # ---------------------------------------------------------------------
+  # Block 7 - Generate Secrets - required when not using SSO
+  # ---------------------------------------------------------------------
+  - name: Generate Secrets required when not using SSO
+    block:    
+      - name: Change script permissions
+        ansible.builtin.shell:
+          cmd: sudo chmod +x ./generate-sample-insecure-secrets.sh
+          chdir: /opt/ove/nucleus-stack/base_stack/
+      - name: Generate secrets
+        ansible.builtin.shell:
+          cmd: sudo ./generate-sample-insecure-secrets.sh
+          chdir: /opt/ove/nucleus-stack/base_stack/
+  # ---------------------------------------------------------------------
+  # Block 8 - Pull and Launch Nucleus Stack
+  # ---------------------------------------------------------------------
+  - name: Pull and Launch Nucleus
+    block:
+      - name: Pull the containers
+        ansible.builtin.shell:
+          cmd: sudo docker-compose --env-file nucleus-stack.env -f nucleus-stack-ssl.yml pull
+          chdir: /opt/ove/nucleus-stack/base_stack/
+      - name: Start Nucleus
+        ansible.builtin.shell:
+          cmd: sudo docker-compose --env-file nucleus-stack.env -f nucleus-stack-ssl.yml up -d
+          chdir: /opt/ove/nucleus-stack/base_stack/
+
+...

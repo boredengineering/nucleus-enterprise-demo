@@ -1,0 +1,140 @@
+---
+# ---------------------------------------------------------------------
+# Play 1
+# ---------------------------------------------------------------------
+- name: Install NGINX
+  hosts: nginx
+  become: true
+  gather_facts: true
+  vars:
+    ansible_connection: aws_ssm
+    ansible_aws_ssm_profile: "{{ profile_name }}"
+    ansible_aws_ssm_bucket_name: "{{ bucketname }}"
+    ansible_aws_ssm_region: "{{ region }}"
+  tasks:
+    # ---------------------------------------------------------------------
+    # Conditional for Block 1
+    # ---------------------------------------------------------------------
+    - name: Check if /etc/nginx/conf.d exists
+      stat:
+        path: "/etc/nginx/conf.d"
+      register: nginx_confd_dir
+    - name: Check if nginx.ingress.router.conf file exists
+      stat:
+        path: "/etc/nginx/conf.d/nginx.ingress.router.conf"
+      register: ingress_config_file
+      when: nginx_confd_dir.stat.isdir
+    - name: "echo if directory already existed"
+      debug:
+        msg: "nginx.ingress.router.conf already exists"
+      when: ingress_config_file.stat.exists
+    # ---------------------------------------------------------------------
+    # Block 1 - Setup NGINX
+    # ---------------------------------------------------------------------
+    - name: Setup NGINX
+      block:
+        - name: Check if nginx.conf file exists
+          stat:
+            path: "/etc/nginx/nginx.conf"
+          register: nginx_config_file
+        # ---------------------------------------------------------------------
+        - name: If nginx.conf file exists delete nginx.conf
+          file:
+            path: "/etc/nginx/nginx.conf"
+            state: absent
+          when: nginx_config_file.stat.exists
+        # ---------------------------------------------------------------------
+        - name: Render nginx.conf template
+          template:
+            src: nginx.conf.j2
+            dest: "/etc/nginx/nginx.conf"
+            mode: 0644
+        # ---------------------------------------------------------------------
+        - name: Check if /etc/nginx/conf.d exists
+          stat:
+            path: "/etc/nginx/conf.d"
+          register: nginx_confd_dir
+        # ---------------------------------------------------------------------
+        - name: Create /etc/nginx/conf.d
+          file:
+            path: "/etc/nginx/conf.d"
+            state: directory
+          when: not nginx_confd_dir.stat.isdir
+        # ---------------------------------------------------------------------
+        - name: collect files
+          find:
+            paths: "/etc/nginx/conf.d"
+            hidden: true
+            recurse: true
+            file_type: any
+          register: collected_files
+          when: nginx_confd_dir.stat.isdir
+        # ---------------------------------------------------------------------
+        - name: remove collected files
+          file:
+            path: "{{ item.path }}"
+            state: absent
+          with_items: "{{ collected_files.files }}"
+          when: nginx_confd_dir.stat.isdir
+        # this is like a double check
+        - name: Check if nginx.ingress.router.conf file exists
+          stat:
+            path: "/etc/nginx/conf.d/nginx.ingress.router.conf"
+          register: ingress_config_file
+        # ---------------------------------------------------------------------
+        - name: Render nginx.ingress.router.conf template
+          template:
+            src: nginx.ingress.router.conf.j2
+            dest: "/etc/nginx/conf.d/nginx.ingress.router.conf"
+            mode: 0644
+          # notify: nginx reload
+          when: not ingress_config_file.stat.exists
+      # when: not ingress_config_file.stat.exists
+    # ---------------------------------------------------------------------
+    # Conditional for Block 2 - Figure out something else if Enclave comes with acm.yaml
+    # ---------------------------------------------------------------------
+    # - name: Check if acm.yaml file exists
+    #   stat:
+    #     path: "/etc/nitro_enclaves/acm.yaml"
+    #   register: acm_config_file
+    # ---------------------------------------------------------------------
+    # Block 2 - Setup nitro-enclaves-acm
+    # ---------------------------------------------------------------------
+    - name: Setup nitro-enclaves-acm
+      block:
+        - name: Check if acm.yaml file exists
+          stat:
+            path: "/etc/nitro_enclaves/acm.yaml"
+          register: acm_config_file
+        # ---------------------------------------------------------------------
+        - name: If acm.yaml file exists
+          file:
+            path: "/etc/nitro_enclaves/acm.yaml"
+            state: absent
+          when: acm_config_file.stat.exists
+        # ---------------------------------------------------------------------
+        - name: Render acm.yaml template
+          template:
+            src: acm.yaml.j2
+            dest: "/etc/nitro_enclaves/acm.yaml"
+            mode: 0644
+      # when: acm_config_file.stat.exists
+    # ---------------------------------------------------------------------
+    # Conditional for Block 3
+    # ---------------------------------------------------------------------
+
+    # ---------------------------------------------------------------------
+    # Block 3 - Start and Enable nitro-enclaves-acm
+    # ---------------------------------------------------------------------
+    - name: Start and Enable nitro-enclaves-acm
+      block:
+        - name: Start nitro-enclaves-acm service
+          ansible.builtin.shell:
+            cmd: sudo systemctl start nitro-enclaves-acm.service
+            chdir: /etc/nitro_enclaves
+        # ---------------------------------------------------------------------
+        - name: Enable nitro-enclaves-acm
+          ansible.builtin.shell:
+            cmd: sudo systemctl enable nitro-enclaves-acm
+            chdir: /etc/nitro_enclaves
+...

@@ -1,0 +1,165 @@
+
+server {
+    listen  80;
+    listen  [::]:80;
+    server_name {{ domain }};
+    # test endpoint
+    location = /_sys/canonical-name {
+        default_type text/plain;
+        add_header   Access-Control-Allow-Origin *;
+        return 200 '{{ domain }}';
+    }
+    # Basic redirect for everything that supports redirects
+    location /  {
+        return 302 https://{{ domain }}$request_uri;
+    }
+}
+# This is the actual Ingress Router
+server {
+    client_max_body_size  0;
+    listen                    443 ssl;
+    listen                    [::]:443 ssl;
+    # FQDN (Fully Qualified Domain Name and the Cert Name)
+    server_name               {{ domain }};
+    # SSL configuration for AWS KMS and ACM
+    ssl_protocols             TLSv1.2;
+    ssl_session_cache         shared:SSL:1m;
+    ssl_session_timeout       10m;
+    ssl_prefer_server_ciphers on;
+    # Set this to the stanza path configured in /etc/nitro_enclaves/acm.yaml
+    include "/etc/pki/nginx/nginx-acm.conf";
+
+    # test endpoint 
+    location = /_sys/canonical-name {
+        default_type text/plain;
+        add_header   Access-Control-Allow-Origin *;
+        # Return server's hostname name as it is on the SSL cert
+        return 200 '{{ domain }}';
+    }
+    # ----------
+    # Substitute all BASE_STACK_IP_OR_HOST inside proxy_pass to AWS private IP
+    # proxy_pass http://BASE_STACK_IP_OR_HOST.internal:8080
+    # proxy_pass http://{{ base_stack_ip_or_host }}:8080
+    # e.g.: ip-10-0-3-111.ec2.internal
+    # Ingress Router configuration and endpoints
+
+    proxy_buffering off;
+    proxy_request_buffering off;
+    # BASE_STACK_IP_OR_HOST
+    location /omni/api {
+        proxy_pass http://{{ base_stack_ip_or_host }}:3019;
+        proxy_http_version 1.1;
+        proxy_read_timeout 60s;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $http_host:3019;
+    }
+
+    # LFT: use LFT_PORT here
+    # BASE_STACK_IP_OR_HOST
+    location /omni/lft/ {
+        proxy_pass http://{{ base_stack_ip_or_host }}:3030/;
+        proxy_http_version 1.1;
+        proxy_read_timeout 60s;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+    }
+
+    # Discovery Service: use DISCOVERY_PORT here
+    # BASE_STACK_IP_OR_HOST
+    location /omni/discovery {
+        proxy_pass http://{{ base_stack_ip_or_host }}:3333;
+        proxy_http_version 1.1;
+        proxy_read_timeout 60s;
+        proxy_set_header Upgrade $http_upgrade;
+        add_header Access-Control-Allow-Origin * always;
+        add_header Access-Control-Allow-Headers * always;
+        add_header Access-Control-Allow-Methods * always;
+        proxy_set_header Connection "upgrade";
+    }
+
+    # Auth Service: use AUTH_PORT here
+    # BASE_STACK_IP_OR_HOST
+    location /omni/auth {
+        proxy_pass http://{{ base_stack_ip_or_host }}:3100;
+        proxy_http_version 1.1;
+        proxy_read_timeout 60s;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+    }
+
+    # Auth Service's Login Form: use AUTH_LOGIN_FORM_PORT here
+    # BASE_STACK_IP_OR_HOST
+    location /omni/auth/login {
+        proxy_pass http://{{ base_stack_ip_or_host }}:3180/;
+        proxy_http_version 1.1;
+        proxy_read_timeout 60s;
+        proxy_set_header Upgrade $http_upgrade;
+        add_header Access-Control-Allow-Origin *;
+        proxy_set_header Connection "upgrade";
+    }
+
+    # Navigator
+
+    # Default root redirect to Navigator (routed via `/omni/web3`) 
+    location = / {
+        # Replace instances of my-ssl-nucleus.my-company.com with your domain.
+        return 302 https://{{ domain }}/omni/web3;
+    }
+
+    # Actual Navigator route, use WEB_PORT here
+    # BASE_STACK_IP_OR_HOST
+    location /omni/web3/ {
+        proxy_pass http://{{ base_stack_ip_or_host }}:8080/;
+        proxy_http_version 1.1;
+        proxy_read_timeout 60s;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $http_host;
+    }
+
+    # Redirect for browser links produced by Apps and Connectors. 
+    # Basically, we want to "catch" every URL that contains an 
+    # `omniverse://` URL in it and route those to Navigator.
+
+    # Note: re-writing to `omni/web3` due to browser links not
+    # including `omni/web3`
+
+    # !!! Note - one slash after omniverse: in the regexp because NGINX
+    # !!! collapses two slashes into one.
+
+    location ~* "^/omniverse:/(.*)$" {
+        return 302 https://{{ domain }}/omni/web3/omniverse://$1;
+    }
+
+    # Tagging Service: use TAGGING_PORT here
+    # BASE_STACK_IP_OR_HOST
+    location /omni/tagging3 {
+        proxy_pass http://{{ base_stack_ip_or_host }}:3020;
+        proxy_http_version 1.1;
+        proxy_read_timeout 60s;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+    }
+
+    # Search Service: use SEARCH_PORT here
+    # BASE_STACK_IP_OR_HOST
+    location /omni/search3 {
+        proxy_pass http://{{ base_stack_ip_or_host }}:3400;
+        proxy_http_version 1.1;
+        proxy_read_timeout 60s;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+    }
+
+    # NGSearch Service: use NGSEARCH_PORT from NGSearch stack here
+    # BASE_STACK_IP_OR_HOST
+    location /omni/ngsearch2 {
+        proxy_pass http://{{ base_stack_ip_or_host }}:3503;
+        proxy_http_version 1.1;
+        proxy_read_timeout 60s;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+    }
+}
+# END of HTTP context

@@ -1,0 +1,9 @@
+#!/bin/bash
+
+BASEDIR=$(dirname "$0")
+
+exec $BASEDIR/kit/kit $BASEDIR/apps/omni.farm.agent.headless.kit \
+    --ext-folder $BASEDIR/exts-farm-agent \
+    --/exts/omni.services.farm.agent.operator/job_store_args/job_directories/0=$BASEDIR/jobs/* \
+    --/exts/omni.services.farm.agent.controller/manager_host=http://{{ omni_farm_host }}:8222 \
+    --/exts/omni.services.farm.agent.operator/manager_host=http://{{ omni_farm_host }}:8222

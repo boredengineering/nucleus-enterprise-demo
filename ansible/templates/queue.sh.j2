@@ -1,0 +1,7 @@
+#!/bin/bash
+
+BASEDIR=$(dirname "$0")
+
+exec $BASEDIR/kit/kit $BASEDIR/apps/omni.farm.queue.headless.kit \
+    --ext-folder $BASEDIR/exts-farm-queue \
+    --/exts/omni.services.farm.management.tasks/dbs/task-persistence/connection_string=sqlite:///$BASEDIR//task-management.db

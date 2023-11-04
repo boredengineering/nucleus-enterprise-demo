@@ -1,0 +1,83 @@
+import logging
+from pprint import pprint
+
+import boto3
+from botocore.exceptions import ClientError
+
+# CERT_ARN = tlsCertifcateArn
+# ROLE_ARN = proxyInstanceRoleArn
+
+CERT_ARN     = "${tlsCertificateArn}"
+ROLE_ARN     = "${proxyInstanceRoleArn}"
+REGION       = "${region}"
+PROFILE_NAME = "${profile_name}"
+
+logger = logging.getLogger(__name__)
+
+class AcmCertificate:
+    """
+    Encapsulates ACM functions.
+    """
+    def __init__(self, acm_client):
+        """
+        :param acm_client: A Boto3 ACM client.
+        """
+        self.acm_client = acm_client
+    def describe(self, certificate_arn):
+        """
+        Gets certificate metadata.
+
+        :param certificate_arn: The Amazon Resource Name (ARN) of the certificate.
+        :return: Metadata about the certificate.
+        """
+        try:
+            response = self.acm_client.describe_certificate(
+                CertificateArn=certificate_arn)
+            certificate = response['Certificate']
+            logger.info(
+                "Got metadata for certificate for domain %s.",
+                certificate['DomainName'])
+        except ClientError:
+            logger.exception("Couldn't get data for certificate %s.", certificate_arn)
+            raise
+        else:
+            return certificate
+
+def disassociate_enclave_cert():
+    # Setup for SSO
+    boto3.setup_default_session(profile_name=PROFILE_NAME,region_name= REGION)
+    acm_certificate = AcmCertificate(boto3.client('acm'))
+    certificate_arn = CERT_ARN
+    cert_metadata = acm_certificate.describe(certificate_arn)
+    # 'InUseBy': [] --- If the 'InUseBy' is empty we should not run
+    # response = ec2_client.disassociate_enclave_certificate_iam_role(
+    if len(cert_metadata['InUseBy']) > 0:
+        ec2_client = boto3.client('ec2')
+        response = ec2_client.disassociate_enclave_certificate_iam_role(
+            CertificateArn = CERT_ARN,
+            RoleArn = ROLE_ARN
+        )
+        print(response)
+    else:
+        print(cert_metadata['InUseBy'])
+
+def usage_demo():
+    print('-'*88)
+    print("Welcome to the AWS Certificate Manager (ACM) demo!")
+    print('-'*88)
+    # Setup for SSO
+    boto3.setup_default_session(profile_name=PROFILE_NAME,region_name= REGION)
+    acm_certificate = AcmCertificate(boto3.client('acm'))
+    certificate_arn = CERT_ARN
+
+    print(f"Getting metadata for certificate {certificate_arn}")
+    cert_metadata = acm_certificate.describe(certificate_arn)
+    pprint(cert_metadata)
+
+    print("Thanks for watching!")
+    print('-'*88)
+    print(cert_metadata['InUseBy'])
+
+if __name__ == '__main__':
+    # usage_demo()
+    disassociate_enclave_cert()
