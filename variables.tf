@@ -64,7 +64,7 @@ variable "proxyServerAMI_List" {
         us-east-1 =    "ami-00d96e5ee00daa484" , # virginia
         us-east-2 =    "ami-020ea706ac260de21" , # ohio
         us-west-1 =    "ami-0213075968e811ea7" , # california
-        us-west-2 =    "ami-01c4415fd6c2f0927" , # oregon
+        us-west-2 =    "ami-05421ae6be0ecba36" , # oregon - older "ami-01c4415fd6c2f0927"
         ca-central-1 = "ami-096dd1150b96b6125" , # canada
         eu-central-1 = "ami-06a2b19f6b97762cb" , # frankfurt
         eu-west-1 =    "ami-069e205c9dea19322" , # ireland

@@ -4,7 +4,7 @@ collections:
   - name: community.aws
   - name: community.general
   - name: community.docker
-    version: 3.4.8
+    version: ">=3.4.8"
 
 # Nvidia Roles from Galaxy
 roles:

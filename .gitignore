@@ -57,3 +57,4 @@ nucleus.yaml
 .vscode
 
 **/collections/ansible_collections/*
+**/roles/galaxy/*

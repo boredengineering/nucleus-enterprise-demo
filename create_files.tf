@@ -93,7 +93,7 @@ data "null_data_source" "nucleus" {
 # Create aws_ec2.yaml
 resource "local_file" "aws_ec2" {
   filename = "./ansible/aws_ec2.yaml"
-  content  = data.null_data_source.aaws_ec2.outputs["content"]
+  content  = data.null_data_source.aws_ec2.outputs["content"]
 }
 # Create associate_enclave_cert.py
 resource "local_file" "associate_enclave_cert" {

@@ -2,8 +2,9 @@
 # AWS ACM Nitro Enclaves - NGINX Proxy Server Instance
 #---------------------------------------------------------------
 resource "aws_instance" "reverseProxyServer" {
-    # ami = var.proxyServerAMI_List[var.region]
-    ami             = data.aws_ami.nitro_ami.id
+    ami = var.proxyServerAMI_List[var.region]
+    # Cannot locate it programmatically
+    # ami             = data.aws_ami.nitro_ami.id
     instance_type   = local.proxy_instance_type
 
     vpc_security_group_ids = [aws_security_group.proxySG.id]
@@ -29,14 +30,16 @@ resource "aws_instance" "reverseProxyServer" {
 #---------------------------------------------------------------
 # AWS Certificate Manager for Nitro Enclaves AMI
 #---------------------------------------------------------------
-data "aws_ami" "nitro_ami" {
-    most_recent = true
-    owners = ["679593333241"]
-    filter {
-        name   = "name"
-        values = ["ACM-For-Nitro-Enclaves-1-2-0_2022-09-09T11-07-26.526Z-3f5ee4f8-1439-4bce-ac57-e794a4ca82f9*"]
-    }
-}
+# PROBLEM
+# data "aws_ami" "nitro_ami" {
+#     most_recent = true
+#     owners = ["679593333241"]
+#     filter {
+#         name   = "name"
+#         # values = ["ACM-For-Nitro-Enclaves-1-2-0_2022-09-09T11-07-26.526Z-3f5ee4f8-1439-4bce-ac57-e794a4ca82f9*"]
+#         values = ["ACM-For-Nitro-Enclaves*"]
+#     }
+# }
 #---------------------------------------------------------------
 # Security Group for Proxy Server
 #---------------------------------------------------------------

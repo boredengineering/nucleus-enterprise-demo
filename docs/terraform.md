@@ -254,3 +254,46 @@ CERT_ARN = tls-certificate-arn
 ROLE_ARN = proxy-instance-role-arn
 ROLE_POLICY_ARN = proxy-cert-association-policy-arn
 
+### ACM for Nitro Enclaves
+
+There is an issue trying to locate the AMI using Terraform and AWS CLI.
+
+Example:
+
+```terminal
+aws ec2 describe-images --image-id ami-01c4415fd6c2f0927 --region us-west-2 --query 'sort_by(Images, &CreationDate)[-1].{Name: Name, ImageId: ImageId, CreationDate: CreationDate, Owner:OwnerId}' --output json --region us-west-2 --profile renan
+```
+
+Example output:
+```json
+{
+    "Name": "ACM-For-Nitro-Enclaves-1-0-2_ 2021-04-29T21-09-41.751Z-3f5ee4f8-1439-4bce-ac57-e794a4ca82f9-ami-028ce88e069714286.4",
+    "ImageId": "ami-01c4415fd6c2f0927",
+    "CreationDate": "2021-04-30T00:01:19.000Z",
+    "Owner": "679593333241"
+}
+```
+
+However when trying to run the command to query it for the Image Name "ACM-For-Nitro-Enclaves" it returns null.
+
+```terminal
+aws ec2 describe-images --owners 679593333241 --filters "Name=name,Values=ACM-For-Nitro-Enclaves*" --region us-west-2 --query 'Images[*].[ImageId]' --output json --region us-west-2 --profile renan
+```
+
+```terminal
+aws ec2 describe-images --owners 679593333241 --filters "Name=name,Values=ACM-For-Nitro-Enclaves-1-0-2_ 2021-04-29T21-09-41.751Z-3f5ee4f8-1439-4bce-ac57-e794a4ca82f9-ami-028ce88e069714286.4" --region us-west-2 --query 'Images[*].[ImageId]' --output json --region us-west-2 --profile renan
+```
+
+The list of AMIs on Nvidia demo:
+
+**ATTENTION** - These AMIS are outdated
+
+> - 'us-west-1': 'ami-0213075968e811ea7',    //california
+> - 'us-west-2': 'ami-01c4415fd6c2f0927',    //oregon
+> - 'us-east-1': 'ami-00d96e5ee00daa484',    //virginia
+> - 'us-east-2': 'ami-020ea706ac260de21',    //ohio
+> - 'ca-central-1': 'ami-096dd1150b96b6125', //canada
+> - 'eu-central-1': 'ami-06a2b19f6b97762cb', //frankfurt
+> - 'eu-west-1': 'ami-069e205c9dea19322',    //ireland
+> - 'eu-west-2': 'ami-069b79a2d7d0d9408'     //london
+
