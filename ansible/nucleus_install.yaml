@@ -83,6 +83,7 @@
   # ---------------------------------------------------------------------
   # Block 2 - Install Docker-Compose
   # ---------------------------------------------------------------------
+  # Outdated version of Docker Compose
   # https://github.com/docker/compose/releases/download/1.29.2/docker-compose-Linux-x86_64
   - name: Install Docker-Compose
     get_url:
@@ -90,6 +91,13 @@
       dest: /usr/local/bin/docker-compose
       mode: 'u+x,g+x,o+x'
     when: compose.stat.exists == false
+  # Use get_uri to download the latest release
+  # - name: Download the latest cURL distribution
+  #   ansible.builtin.get_url:
+  #     url: "{{ lookup('url', 'https://api.github.com/repos/curl/curl/releases/latest', split_lines=false) | regex_search('browser_download_url.*(https://(.*?).tar.gz)', '\\1') | first }}"
+  #     dest: '{{ build_directory }}/curl-latest.tar.gz'
+  #     owner: root
+  #     group: root
   # ---------------------------------------------------------------------
   # Conditional Block 3 - Install aws-cli
   # --------------------------------------------------------------------

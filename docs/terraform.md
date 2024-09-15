@@ -18,6 +18,8 @@ Otherwise there will be a need for 2 Python Virtual Environments and 2 separate 
 > - Verify if ACM certs are associated to the Proxy instance <br/>
 > - Verify SSM connection<br/>
 
+TODO - Table of Contents
+
 ## Step 1 - Setup WSL
 1- get right WSL2 distro (ex.: Ubuntu 22.04 LTS)<br/>
 2- Install AWS CLI<br/>
@@ -80,25 +82,6 @@ Activate the Virtual Environment
 > ```source .venv/bin/activate```<br/>
 
 ### Install Python Dependencies<br/>
-List of Project Dependencies:<br/>
-- ansible==2.9<br/>
-- ansible-core<br/>
-- boto3<br/>
-- botocore<br/>
-- cffi<br/>
-- cryptography<br/>
-- Jinja2<br/>
-- jmespath<br/>
-- MarkupSafe<br/>
-- packaging<br/>
-- pycparser<br/>
-- python-dateutil<br/>
-- PyYAML<br/>
-- resolvelib<br/>
-- s3transfer<br/>
-- six<br/>
-- urllib3<br/>
-
 Install all python dependencies<br/>
 > ```python3 -m pip install -r requirements.txt```<br/>
 
@@ -106,10 +89,31 @@ You can also manually install them and try different versions.<br/>
 > ```python3 -m pip install ansible```<br/>
 > ```python3 -m pip install boto3```<br/>
 
-Ansible is pretty heavy and slow to install.<br/>
+**Attention!!!** - Ansible is pretty heavy and slow to install.<br/>
 
-Confirm version<br/>
+Confirm Ansible version<br/>
 > ```which ansible```<br/>
+
+You should see something like this when running ```pip freeze```.
+
+> List of Project Dependencies:<br/>
+> - ansible==2.9<br/>
+> - ansible-core<br/>
+> - boto3<br/>
+> - botocore<br/>
+> - cffi<br/>
+> - cryptography<br/>
+> - Jinja2<br/>
+> - jmespath<br/>
+> - MarkupSafe<br/>
+> - packaging<br/>
+> - pycparser<br/>
+> - python-dateutil<br/>
+> - PyYAML<br/>
+> - resolvelib<br/>
+> - s3transfer<br/>
+> - six<br/>
+> - urllib3<br/>
 
 
 ### Install the Session Manager plugin on Ubuntu<br/>
@@ -256,37 +260,83 @@ ROLE_POLICY_ARN = proxy-cert-association-policy-arn
 
 ### ACM for Nitro Enclaves
 
-There is an issue trying to locate the AMI using Terraform and AWS CLI.
+It is important to find the correct AMI ID for your Region to properly setup the Proxy server using AWS Nitro-Enclaves. You can do that through the AWS Marketplace or running the AWS CLI command ```aws ec2 describe-images```.
 
-Example:
+Examples:
+
+- Find the Latest Image information for **"ACM-For-Nitro-Enclaves"** for a particular region:
 
 ```terminal
-aws ec2 describe-images --image-id ami-01c4415fd6c2f0927 --region us-west-2 --query 'sort_by(Images, &CreationDate)[-1].{Name: Name, ImageId: ImageId, CreationDate: CreationDate, Owner:OwnerId}' --output json --region us-west-2 --profile renan
+aws ec2 describe-images --owners 679593333241 --filters "Name=name,Values=ACM-For-Nitro-Enclaves*" --region us-west-2 --query 'sort_by(Images, &CreationDate)[-1].{Name: Name, ImageId: ImageId, CreationDate: CreationDate, Owner:OwnerId}' --output json --region us-west-2 --include-deprecated --profile <profile-name>
 ```
 
-Example output:
+Should Output:
+
 ```json
 {
-    "Name": "ACM-For-Nitro-Enclaves-1-0-2_ 2021-04-29T21-09-41.751Z-3f5ee4f8-1439-4bce-ac57-e794a4ca82f9-ami-028ce88e069714286.4",
-    "ImageId": "ami-01c4415fd6c2f0927",
-    "CreationDate": "2021-04-30T00:01:19.000Z",
+    "Name": "ACM-For-Nitro-Enclaves-1-2-0_2022-09-09T11-07-26.526Z-3f5ee4f8-1439-4bce-ac57-e794a4ca82f9",
+    "ImageId": "ami-05421ae6be0ecba36",
+    "CreationDate": "2022-09-12T13:46:52.000Z",
     "Owner": "679593333241"
 }
 ```
 
-However when trying to run the command to query it for the Image Name "ACM-For-Nitro-Enclaves" it returns null.
+- Find all **"ACM-For-Nitro-Enclaves"** AMI ids for a particular region:
 
 ```terminal
-aws ec2 describe-images --owners 679593333241 --filters "Name=name,Values=ACM-For-Nitro-Enclaves*" --region us-west-2 --query 'Images[*].[ImageId]' --output json --region us-west-2 --profile renan
+aws ec2 describe-images --owners 679593333241 --filters "Name=name,Values=ACM-For-Nitro-Enclaves*" --region us-west-2 --query 'Images[*].[ImageId]' --output json --region us-west-2 --include-deprecated --profile <profile-name>
+```
+
+Should Output:
+
+```json
+[
+    [
+        "ami-01c4415fd6c2f0927"
+    ],
+    [
+        "ami-031a76fec7387f3f5"
+    ],
+    [
+        "ami-05421ae6be0ecba36"
+    ]
+]
 ```
 
 ```terminal
-aws ec2 describe-images --owners 679593333241 --filters "Name=name,Values=ACM-For-Nitro-Enclaves-1-0-2_ 2021-04-29T21-09-41.751Z-3f5ee4f8-1439-4bce-ac57-e794a4ca82f9-ami-028ce88e069714286.4" --region us-west-2 --query 'Images[*].[ImageId]' --output json --region us-west-2 --profile renan
+aws ec2 describe-images --owners 679593333241 --filters "Name=name,Values=ACM-For-Nitro-Enclaves*" --region us-west-2 --query 'sort_by(Images, &CreationDate)[].{Name: Name, ImageId: ImageId, CreationDate: CreationDate, Owner:OwnerId}' --output json --region us-west-2 --include-deprecated --profile <profile-name>
+```
+
+Should Output:
+
+```json
+[
+    {
+        "Name": "ACM-For-Nitro-Enclaves-1-0-1_2020-11-20T18-14-09.162Z-3f5ee4f8-1439-4bce-ac57-e794a4ca82f9-ami-09a1f053468bd3dcf.4",
+        "ImageId": "ami-031a76fec7387f3f5",
+        "CreationDate": "2021-01-06T16:07:51.000Z",
+        "Owner": "679593333241"
+    },
+    {
+        "Name": "ACM-For-Nitro-Enclaves-1-0-2_ 2021-04-29T21-09-41.751Z-3f5ee4f8-1439-4bce-ac57-e794a4ca82f9-ami-028ce88e069714286.4",
+        "ImageId": "ami-01c4415fd6c2f0927",
+        "CreationDate": "2021-04-30T00:01:19.000Z",
+        "Owner": "679593333241"
+    },
+    {
+        "Name": "ACM-For-Nitro-Enclaves-1-2-0_2022-09-09T11-07-26.526Z-3f5ee4f8-1439-4bce-ac57-e794a4ca82f9",
+        "ImageId": "ami-05421ae6be0ecba36",
+        "CreationDate": "2022-09-12T13:46:52.000Z",
+        "Owner": "679593333241"
+    }
+]
 ```
 
 The list of AMIs on Nvidia demo:
 
-**ATTENTION** - These AMIS are outdated
+https://docs.omniverse.nvidia.com/nucleus/latest/enterprise/cloud/cloud_aws_ec2.html
+
+**ATTENTION** - These AMIs are outdated
 
 > - 'us-west-1': 'ami-0213075968e811ea7',    //california
 > - 'us-west-2': 'ami-01c4415fd6c2f0927',    //oregon
