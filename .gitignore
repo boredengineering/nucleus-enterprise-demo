@@ -58,3 +58,30 @@ nucleus.yaml
 
 **/collections/ansible_collections/*
 **/roles/galaxy/*
+
+######################################################################
+######################################################################
+# 
+######################################################################
+######################################################################
+
+# Avoid GIT history
+.git
+
+# Development data
+__*
+
+# Generated data
+/state
+*.hosts
+*.swp
+
+__pycache__
+**/*_cache
+
+results/*
+uploads/*
+.DS_Store
+
+src/ansible/roles/isaac/files/autorun.sh
+src/ansible/roles/isaac/files/isaaclab.pem

@@ -85,9 +85,10 @@
   # ---------------------------------------------------------------------
   # Outdated version of Docker Compose
   # https://github.com/docker/compose/releases/download/1.29.2/docker-compose-Linux-x86_64
+  # https://github.com/docker/compose/releases/download/1.29.2/docker-compose-Linux-{{ ansible_architecture }}
   - name: Install Docker-Compose
     get_url:
-      url : https://github.com/docker/compose/releases/download/1.29.2/docker-compose-Linux-{{ ansible_architecture }}
+      url : https://github.com/docker/compose/releases/download/v2.29.3/docker-compose-Linux-{{ ansible_architecture }}
       dest: /usr/local/bin/docker-compose
       mode: 'u+x,g+x,o+x'
     when: compose.stat.exists == false
