@@ -177,6 +177,11 @@ For properly setting up SSL for the NGINX reverse proxy with the Nitro Enclaves 
 Commands<br/>
 > ```aws ec2 --region us-east-1 get-associated-enclave-certificate-iam-roles --certificate-arn cert-arn --profile my-aws-sso-profile```
 
+Example:
+```terminal
+aws ec2 --region us-west-2 get-associated-enclave-certificate-iam-roles --certificate-arn arn:aws:acm:us-west-2:734728120424:certificate/2c6b1113-5841-43cc-82b1-9f8f1f57933b --profile my-aws-sso-profile
+```
+
 - Associate Certs<br/>
 > ```python associate_enclave.py```<br/>
 
